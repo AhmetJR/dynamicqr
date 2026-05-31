@@ -30,8 +30,13 @@ export default function AdminDashboard() {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || `Linkler alınamadı (${response.status})`);
+      const text = await response.text();
+      try {
+        const json = JSON.parse(text);
+        throw new Error(json?.error || text || `Linkler alınamadı (${response.status})`);
+      } catch {
+        throw new Error(text || `Linkler alınamadı (${response.status})`);
+      }
     }
 
     const data = (await response.json()) as LinkData[];
@@ -39,7 +44,7 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    fetchLinks().catch(() => setStatusMessage("Link listesi alınamadı."));
+    fetchLinks().catch((err) => setStatusMessage(err?.message ?? "Link listesi alınamadı."));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,8 +92,13 @@ export default function AdminDashboard() {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `Kaydetme başarısız (${response.status})`);
+        const text = await response.text();
+        try {
+          const json = JSON.parse(text);
+          throw new Error(json?.error || text || `Kaydetme başarısız (${response.status})`);
+        } catch {
+          throw new Error(text || `Kaydetme başarısız (${response.status})`);
+        }
       }
 
       setSlug("");
@@ -97,9 +107,9 @@ export default function AdminDashboard() {
       setEditingSlugOriginal(null);
       setStatusMessage("QR bağlantısı kaydedildi.");
       await fetchLinks();
-    } catch (error) {
+    } catch (error: any) {
       setLinks(prev);
-      setStatusMessage("Kayıt sırasında hata oluştu.");
+      setStatusMessage(error?.message ?? "Kayıt sırasında hata oluştu.");
     } finally {
       setLoading(false);
     }
@@ -123,14 +133,23 @@ export default function AdminDashboard() {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `Silme başarısız (${response.status})`);
+        const text = await response.text();
+        try {
+          const json = JSON.parse(text);
+          throw new Error(json?.error || text || `Silme başarısız (${response.status})`);
+        } catch {
+          throw new Error(text || `Silme başarısız (${response.status})`);
+        }
       }
 
+      // parse success
+      const data = await response.json().catch(() => ({}));
+      if (data && data.error) throw new Error(data.error);
+
       setStatusMessage("Link silindi.");
-    } catch (error) {
+    } catch (error: any) {
       setLinks(prev);
-      setStatusMessage("Silme sırasında hata oluştu.");
+      setStatusMessage(error?.message ?? "Silme sırasında hata oluştu.");
     }
   };
 
