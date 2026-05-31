@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
+import BrandMark from "../components/BrandMark";
 
 type LinkData = {
   slug: string;
@@ -223,41 +224,63 @@ export default function AdminDashboard() {
     window.location.href = '/admin/login';
   };
 
+  const linkCount = links.length;
+  const totalClicks = links.reduce((sum, item) => sum + item.clicks, 0);
+  const latestTarget = links[0]?.target_url ?? 'Henüz kayıt yok';
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(35,44,81,0.18),_transparent_35%),linear-gradient(180deg,#0f172a_0%,#111827_100%)] px-4 py-8 text-white sm:px-8">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/8 p-6 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.24em] text-cyan-200/70">Admin panel</p>
-            <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">QR Kod Yönetim Merkezi</h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-300">
-              Kısa linkleri oluştur, QR kodlarını indir ve tıklamaları tek yerden takip et.
-            </p>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.14),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.16),_transparent_32%),linear-gradient(180deg,#020617_0%,#0f172a_42%,#111827_100%)] px-4 py-6 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+        <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/70 shadow-2xl shadow-slate-950/25 backdrop-blur-xl">
+          <div className="flex flex-col gap-5 border-b border-white/10 p-6 sm:p-7 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-3xl space-y-4">
+              <BrandMark />
+              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">QR Kod Yönetim Merkezi</h1>
+              <p className="max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
+                Kısa linkleri oluştur, QR&apos;leri indir ve tıklamaları tek yerden takip et. Dinamik hedef değişse de QR sabit kalır.
+              </p>
+            </div>
+
+            <button
+              onClick={handleLogout}
+              className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+            >
+              Çıkış yap
+            </button>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
-          >
-            Çıkış yap
-          </button>
+          <div className="grid gap-3 border-b border-white/10 p-6 sm:grid-cols-3 sm:p-7">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Toplam link</p>
+              <p className="mt-3 text-3xl font-semibold text-white">{linkCount}</p>
+            </div>
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Toplam tıklama</p>
+              <p className="mt-3 text-3xl font-semibold text-white">{totalClicks}</p>
+            </div>
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Son hedef</p>
+              <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-200">{latestTarget}</p>
+            </div>
+          </div>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="grid gap-4 rounded-3xl border border-white/10 bg-slate-950/60 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl lg:grid-cols-[1fr_1.2fr_auto]"
+          className="grid gap-4 rounded-[2rem] border border-white/10 bg-slate-950/65 p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl lg:grid-cols-[0.9fr_1.2fr_auto] lg:items-end"
         >
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-200">Kısa URL</label>
-                <input
-                  type="text"
-                  required
-                  value={slug}
-                  onChange={(event) => setSlug(event.target.value)}
-                  placeholder="kampanya-2026"
-                  disabled={isEditing}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/60 focus:bg-white/10 disabled:opacity-60"
-                />
+            <input
+              type="text"
+              required
+              value={slug}
+              onChange={(event) => setSlug(event.target.value)}
+              placeholder="kampanya-2026"
+              disabled={isEditing}
+              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/60 focus:bg-white/10 disabled:opacity-60"
+            />
+            <p className="mt-2 text-xs text-slate-500">Slug değişirse yeni kayıt oluşur, düzenlerken slug kilitlenir.</p>
           </div>
 
           <div>
@@ -272,33 +295,41 @@ export default function AdminDashboard() {
             />
           </div>
 
-          <button
-            disabled={loading}
-            type="submit"
-            className="self-end rounded-2xl bg-cyan-400 px-6 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading ? "Kaydediliyor..." : isEditing ? "Güncelle" : "Kaydet / Güncelle"}
-          </button>
-          {isEditing ? (
+          <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
             <button
-              type="button"
-              onClick={handleCancelEdit}
-              className="self-end ml-3 rounded-2xl border border-white/10 bg-white/5 px-6 py-3 font-semibold text-white transition hover:bg-white/10"
+              disabled={loading}
+              type="submit"
+              className="rounded-2xl bg-cyan-300 px-6 py-3 font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Vazgeç
+              {loading ? "Kaydediliyor..." : isEditing ? "Güncelle" : "Kaydet / Güncelle"}
             </button>
-          ) : null}
+            {isEditing ? (
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="rounded-2xl border border-white/10 bg-white/5 px-6 py-3 font-semibold text-white transition hover:bg-white/10"
+              >
+                Vazgeç
+              </button>
+            ) : null}
+          </div>
         </form>
 
         {statusMessage ? (
-          <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-sm text-cyan-100">
+          <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-sm text-cyan-100 shadow-lg shadow-cyan-950/10">
             {statusMessage}
           </div>
         ) : null}
 
-        <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/60 shadow-2xl shadow-slate-950/30 backdrop-blur-xl">
-          <div className="border-b border-white/10 px-6 py-4">
-            <h2 className="text-lg font-semibold">Kayıtlı Linkler</h2>
+        <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/60 shadow-2xl shadow-slate-950/30 backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-4 border-b border-white/10 px-6 py-4 sm:px-7">
+            <div>
+              <h2 className="text-lg font-semibold">Kayıtlı Linkler</h2>
+              <p className="mt-1 text-sm text-slate-400">QR, slug ve hedefi tek satırda gör.</p>
+            </div>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-300">
+              {linkCount} kayıt
+            </span>
           </div>
 
           <div className="overflow-x-auto">
@@ -319,36 +350,42 @@ export default function AdminDashboard() {
                   const qrValue = qrUrl;
 
                   return (
-                    <tr key={`${link.slug}-${link.created_at}`} className="border-t border-white/5 align-top hover:bg-white/[0.03]">
+                    <tr key={`${link.slug}-${link.created_at}`} className="border-t border-white/5 align-top transition hover:bg-white/[0.03]">
                       <td className="px-6 py-5">
-                        <div className="inline-flex rounded-2xl border border-white/10 bg-white p-2">
-                          <QRCodeCanvas id={`qr-${link.slug}-${link.created_at}`} value={qrValue} size={88} level="H" />
+                        <div className="inline-flex rounded-3xl border border-white/10 bg-white p-2 shadow-lg shadow-black/20">
+                          <QRCodeCanvas id={`qr-${link.slug}-${link.created_at}`} value={qrValue} size={90} level="H" />
                         </div>
                       </td>
-                      <td className="px-6 py-5 font-medium text-white">{link.slug}</td>
+                      <td className="px-6 py-5 font-medium text-white">
+                        <div className="flex flex-col gap-2">
+                          <span>{link.slug}</span>
+                          <span className="inline-flex w-fit rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[11px] font-medium text-cyan-100">
+                            dinamik
+                          </span>
+                        </div>
+                      </td>
                       <td className="px-6 py-5 text-slate-300">
-                        <p className="max-w-md break-all">{link.target_url}</p>
-                        <p className="mt-1 text-xs text-slate-500">{link.target_url}</p>
-                        <p className="mt-1 text-xs text-slate-500">{qrUrl}</p>
+                        <p className="max-w-md break-all leading-6 text-slate-100">{link.target_url}</p>
+                        <p className="mt-2 text-xs text-slate-500">{qrUrl}</p>
                       </td>
                       <td className="px-6 py-5 text-slate-200">{link.clicks}</td>
                       <td className="px-6 py-5">
                         <div className="flex flex-wrap gap-3">
                           <button
                             onClick={() => handleEditClick(link)}
-                            className="text-cyan-300 transition hover:text-cyan-200"
+                            className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-cyan-100 transition hover:bg-cyan-300/20"
                           >
                             Düzenle
                           </button>
                           <button
                             onClick={() => downloadQR(link.slug, link.created_at)}
-                            className="text-emerald-300 transition hover:text-emerald-200"
+                            className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-emerald-100 transition hover:bg-emerald-300/20"
                           >
                             İndir
                           </button>
                           <button
                             onClick={() => handleDelete(link.slug)}
-                            className="text-rose-300 transition hover:text-rose-200"
+                            className="rounded-full border border-rose-300/20 bg-rose-300/10 px-3 py-1.5 text-rose-100 transition hover:bg-rose-300/20"
                           >
                             Sil
                           </button>
@@ -362,8 +399,9 @@ export default function AdminDashboard() {
           </div>
 
           {links.length === 0 ? (
-            <div className="px-6 py-10 text-center text-slate-400">
-              Henüz hiç QR kod oluşturulmadı. Yukarıdaki form ile ilk kaydı ekle.
+            <div className="px-6 py-12 text-center text-slate-400">
+              <p className="text-base font-medium text-slate-300">Henüz hiç QR kod oluşturulmadı.</p>
+              <p className="mt-2 text-sm">Yukarıdaki form ile ilk kaydı ekle ve listeyi doldur.</p>
             </div>
           ) : null}
         </div>
