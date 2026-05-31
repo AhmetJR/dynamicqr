@@ -3,9 +3,9 @@ import QRCode from 'qrcode';
 
 export const runtime = 'nodejs';
 
-export async function GET(request: Request, { params }: { params: { slug: string } }) {
+export async function GET(request: Request, context: { params: Promise<{ slug: string }> }) {
   try {
-    const slug = params.slug;
+    const { slug } = await context.params;
     const url = `${request.headers.get('x-forwarded-proto') || 'https'}://${request.headers.get('host')}/${slug}`;
 
     // generate PNG buffer
