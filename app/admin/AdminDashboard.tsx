@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
-import { useRouter } from "next/navigation";
 
 type LinkData = {
   slug: string;
@@ -11,7 +10,6 @@ type LinkData = {
 };
 
 export default function AdminDashboard() {
-  const router = useRouter();
   const [links, setLinks] = useState<LinkData[]>([]);
   const [slug, setSlug] = useState("");
   const [targetUrl, setTargetUrl] = useState("");
@@ -24,12 +22,13 @@ export default function AdminDashboard() {
   );
 
   const fetchLinks = async () => {
-    const res = await fetch("/api/links");
-    if (!res.ok) {
-      throw new Error("Linkler yüklenemedi");
+    const response = await fetch("/api/links");
+
+    if (!response.ok) {
+      throw new Error("Linkler alınamadı");
     }
 
-    const data = await res.json();
+    const data = (await response.json()) as LinkData[];
     setLinks(data);
   };
 
@@ -46,7 +45,7 @@ export default function AdminDashboard() {
       const response = await fetch("/api/links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, target_url: targetUrl }),
+        body: JSON.stringify({ slug: slug.trim(), target_url: targetUrl.trim() }),
       });
 
       if (!response.ok) {
@@ -107,9 +106,7 @@ export default function AdminDashboard() {
   };
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/admin/login");
-    router.refresh();
+    window.location.href = "/admin/login";
   };
 
   return (

@@ -1,16 +1,32 @@
-import { sql } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
-import { ensureLinksTable } from '@/lib/links';
+import { ensureLinksTable, getLinkBySlug, incrementClicks } from '@/lib/links';
+
+export const runtime = 'nodejs';
 
 export async function GET(request: Request, { params }: { params: { slug: string } }) {
   const slug = params.slug;
+  const requestUrl = new URL(request.url);
+  const encodedTarget = requestUrl.searchParams.get('u');
+
+  if (encodedTarget) {
+    try {
+      const decodedTarget = decodeURIComponent(encodedTarget);
+      const parsedTarget = new URL(decodedTarget);
+
+      if (parsedTarget.protocol === 'http:' || parsedTarget.protocol === 'https:') {
+        return NextResponse.redirect(parsedTarget.toString());
+      }
+    } catch {
+      console.error('Geçersiz self-contained QR hedefi');
+    }
+  }
 
   try {
     await ensureLinksTable();
-    const { rows } = await sql`SELECT target_url FROM links WHERE slug = ${slug}`;
-    if (rows.length > 0) {
-      sql`UPDATE links SET clicks = clicks + 1 WHERE slug = ${slug}`.catch(console.error);
-      return NextResponse.redirect(rows[0].target_url);
+    const link = await getLinkBySlug(slug);
+    if (link) {
+      void incrementClicks(slug).catch(console.error);
+      return NextResponse.redirect(link.target_url);
     }
   } catch (error) {
     console.error('Yönlendirme hatası:', error);

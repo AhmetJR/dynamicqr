@@ -1,12 +1,21 @@
-import { sql } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
-import { ensureLinksTable } from '@/lib/links';
+import { deleteLink, ensureLinksTable, getLinks, upsertLink } from '@/lib/links';
+import { ADMIN_COOKIE_NAME } from '@/lib/auth';
 
-export async function GET() {
+export const runtime = 'nodejs';
+
+function isAdminAuthorized(request: Request) {
+  return request.headers.get('cookie')?.includes(`${ADMIN_COOKIE_NAME}=true`) ?? false;
+}
+
+export async function GET(request: Request) {
   try {
+    if (!isAdminAuthorized(request)) {
+      return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 });
+    }
+
     await ensureLinksTable();
-    const { rows } = await sql`SELECT * FROM links ORDER BY created_at DESC`;
-    return NextResponse.json(rows);
+    return NextResponse.json(await getLinks());
   } catch (error) {
     console.error('Linkler çekilemedi:', error);
     return NextResponse.json({ error: 'Veriler çekilemedi' }, { status: 500 });
@@ -15,14 +24,13 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    await ensureLinksTable();
+    if (!isAdminAuthorized(request)) {
+      return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 });
+    }
+
     const { slug, target_url } = await request.json();
-    await sql`
-      INSERT INTO links (slug, target_url) 
-      VALUES (${slug}, ${target_url})
-      ON CONFLICT (slug) 
-      DO UPDATE SET target_url = EXCLUDED.target_url;
-    `;
+    await ensureLinksTable();
+    await upsertLink(slug, target_url);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Link kaydedilemedi:', error);
@@ -32,9 +40,13 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    await ensureLinksTable();
+    if (!isAdminAuthorized(request)) {
+      return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 });
+    }
+
     const { slug } = await request.json();
-    await sql`DELETE FROM links WHERE slug = ${slug}`;
+    await ensureLinksTable();
+    await deleteLink(slug);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Link silinemedi:', error);
