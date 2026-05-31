@@ -10,6 +10,12 @@ type LinkData = {
   clicks: number;
 };
 
+const DOWNLOAD_SIZES = [
+  { label: '512 px', value: 512 },
+  { label: '1000 px', value: 1000 },
+  { label: '2000 px', value: 2000 },
+];
+
 export default function AdminDashboard() {
   const [links, setLinks] = useState<LinkData[]>([]);
   const [slug, setSlug] = useState("");
@@ -19,6 +25,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [slugExists, setSlugExists] = useState(false);
+  const [downloadSize, setDownloadSize] = useState(1000);
+  const [hasMounted, setHasMounted] = useState(false);
 
   const baseUrl = useMemo(
     () => (typeof window !== "undefined" ? window.location.origin : ""),
@@ -53,6 +61,31 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchLinks().catch((err) => setStatusMessage(err?.message ?? "Link listesi alınamadı."));
   }, []);
+
+  useEffect(() => {
+    try {
+      const savedSize = window.localStorage.getItem("dinamik-qr-download-size");
+      if (savedSize) {
+        const parsed = Number(savedSize);
+        if (DOWNLOAD_SIZES.some((option) => option.value === parsed)) {
+          setDownloadSize(parsed);
+        }
+      }
+    } catch {
+      // ignore storage issues
+    } finally {
+      setHasMounted(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasMounted) return;
+    try {
+      window.localStorage.setItem("dinamik-qr-download-size", String(downloadSize));
+    } catch {
+      // ignore storage issues
+    }
+  }, [downloadSize, hasMounted]);
 
   // auto-clear status messages after 4s
   useEffect(() => {
@@ -200,21 +233,28 @@ export default function AdminDashboard() {
     setEditingSlugOriginal(null);
   };
 
-  const downloadQR = (slugName: string, createdAt: string) => {
-    const canvas = document.getElementById(`qr-${slugName}-${createdAt}`) as HTMLCanvasElement;
-    if (!canvas) {
-      return;
-    }
+  const downloadQR = async (slugName: string) => {
+    try {
+      const response = await fetch(`/api/qr/${encodeURIComponent(slugName)}?size=${downloadSize}`, {
+        credentials: 'include',
+      });
 
-    const pngUrl = canvas
-      .toDataURL("image/png")
-      .replace("image/png", "image/octet-stream");
-    const downloadLink = document.createElement("a");
-    downloadLink.href = pngUrl;
-    downloadLink.download = `${slugName}-qr.png`;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
+      if (!response.ok) {
+        throw new Error(`QR indirilemedi (${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = objectUrl;
+      downloadLink.download = `${slugName}-${downloadSize}px-qr.png`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (error: any) {
+      setStatusMessage(error?.message ?? 'QR indirilemedi.');
+    }
   };
 
   const handleLogout = async () => {
@@ -322,14 +362,33 @@ export default function AdminDashboard() {
         ) : null}
 
         <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/60 shadow-2xl shadow-slate-950/30 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-4 border-b border-white/10 px-6 py-4 sm:px-7">
+          <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-4 sm:px-7 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-lg font-semibold">Kayıtlı Linkler</h2>
               <p className="mt-1 text-sm text-slate-400">QR, slug ve hedefi tek satırda gör.</p>
             </div>
-            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-300">
-              {linkCount} kayıt
-            </span>
+            <div className="flex items-center gap-3">
+              <label className="text-sm text-slate-300">İndirme boyutu</label>
+              <select
+                value={downloadSize}
+                onChange={(event) => setDownloadSize(Number(event.target.value))}
+                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white outline-none transition focus:border-cyan-300/60 focus:bg-white/10"
+              >
+                {DOWNLOAD_SIZES.map((option) => (
+                  <option key={option.value} value={option.value} className="bg-slate-950 text-white">
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-300">
+                {linkCount} kayıt
+              </span>
+            </div>
+          </div>
+          <div className="border-b border-white/10 px-6 py-3 sm:px-7">
+            <p className="text-xs leading-6 text-slate-400">
+              Seçtiğin boyut tarayıcıda hatırlanır. 512 px hızlı önizleme, 1000 px dengeli baskı, 2000 px yüksek çözünürlük içindir.
+            </p>
           </div>
 
           <div className="overflow-x-auto">
@@ -378,10 +437,10 @@ export default function AdminDashboard() {
                             Düzenle
                           </button>
                           <button
-                            onClick={() => downloadQR(link.slug, link.created_at)}
+                            onClick={() => downloadQR(link.slug)}
                             className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-emerald-100 transition hover:bg-emerald-300/20"
                           >
-                            İndir
+                            İndir {downloadSize >= 1000 ? `${downloadSize / 1000}k` : downloadSize}
                           </button>
                           <button
                             onClick={() => handleDelete(link.slug)}
