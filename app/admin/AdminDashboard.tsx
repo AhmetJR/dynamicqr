@@ -315,8 +315,8 @@ export default function AdminDashboard() {
               <tbody>
                 {links.map((link) => {
                   const qrUrl = `${baseUrl}/${link.slug}`;
-                  // QR should encode the actual target URL so scanners open the real target (e.g. YouTube)
-                  const qrValue = link.target_url || qrUrl;
+                  // Use dynamic QR: encode the short slug URL so the redirect target can be changed later
+                  const qrValue = qrUrl;
 
                   return (
                     <tr key={`${link.slug}-${link.created_at}`} className="border-t border-white/5 align-top hover:bg-white/[0.03]">
@@ -328,7 +328,8 @@ export default function AdminDashboard() {
                       <td className="px-6 py-5 font-medium text-white">{link.slug}</td>
                       <td className="px-6 py-5 text-slate-300">
                         <p className="max-w-md break-all">{link.target_url}</p>
-                        <p className="mt-1 text-xs text-slate-500">{qrValue}</p>
+                        <p className="mt-1 text-xs text-slate-500">{link.target_url}</p>
+                        <p className="mt-1 text-xs text-slate-500">{qrUrl}</p>
                       </td>
                       <td className="px-6 py-5 text-slate-200">{link.clicks}</td>
                       <td className="px-6 py-5">
