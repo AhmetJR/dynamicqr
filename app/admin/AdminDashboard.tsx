@@ -13,6 +13,8 @@ export default function AdminDashboard() {
   const [links, setLinks] = useState<LinkData[]>([]);
   const [slug, setSlug] = useState("");
   const [targetUrl, setTargetUrl] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingSlugOriginal, setEditingSlugOriginal] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -45,12 +47,43 @@ export default function AdminDashboard() {
     setLoading(true);
     setStatusMessage(null);
 
+    const nextSlug = slug.trim();
+    const nextTarget = targetUrl.trim();
+
+    if (!nextSlug || !nextTarget) {
+      setStatusMessage("Lütfen slug ve hedef URL girin.");
+      setLoading(false);
+      return;
+    }
+
+    const prev = links;
+
+    // optimistic update
+    if (isEditing && editingSlugOriginal) {
+      setLinks((current) =>
+        current.map((l) => (l.slug === editingSlugOriginal ? { ...l, target_url: nextTarget } : l)),
+      );
+    } else {
+      setLinks((current) => {
+        const existingIndex = current.findIndex((c) => c.slug === nextSlug);
+        const next = { slug: nextSlug, target_url: nextTarget, clicks: 0 } as LinkData;
+
+        if (existingIndex >= 0) {
+          const copy = [...current];
+          copy[existingIndex] = { ...copy[existingIndex], target_url: nextTarget } as LinkData;
+          return copy;
+        }
+
+        return [next, ...current];
+      });
+    }
+
     try {
       const response = await fetch("/api/links", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: slug.trim(), target_url: targetUrl.trim() }),
+        body: JSON.stringify({ slug: nextSlug, target_url: nextTarget }),
       });
 
       if (!response.ok) {
@@ -60,9 +93,12 @@ export default function AdminDashboard() {
 
       setSlug("");
       setTargetUrl("");
+      setIsEditing(false);
+      setEditingSlugOriginal(null);
       setStatusMessage("QR bağlantısı kaydedildi.");
       await fetchLinks();
     } catch (error) {
+      setLinks(prev);
       setStatusMessage("Kayıt sırasında hata oluştu.");
     } finally {
       setLoading(false);
@@ -75,6 +111,8 @@ export default function AdminDashboard() {
     }
 
     setStatusMessage(null);
+    const prev = links;
+    setLinks((currentLinks) => currentLinks.filter((item) => item.slug !== deleteSlug));
 
     try {
       const response = await fetch("/api/links", {
@@ -89,11 +127,25 @@ export default function AdminDashboard() {
         throw new Error(errorText || `Silme başarısız (${response.status})`);
       }
 
-      await fetchLinks();
       setStatusMessage("Link silindi.");
     } catch (error) {
+      setLinks(prev);
       setStatusMessage("Silme sırasında hata oluştu.");
     }
+  };
+
+  const handleEditClick = (link: LinkData) => {
+    setSlug(link.slug);
+    setTargetUrl(link.target_url);
+    setIsEditing(true);
+    setEditingSlugOriginal(link.slug);
+  };
+
+  const handleCancelEdit = () => {
+    setSlug("");
+    setTargetUrl("");
+    setIsEditing(false);
+    setEditingSlugOriginal(null);
   };
 
   const downloadQR = (slugName: string) => {
@@ -143,14 +195,15 @@ export default function AdminDashboard() {
         >
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-200">Kısa URL</label>
-            <input
-              type="text"
-              required
-              value={slug}
-              onChange={(event) => setSlug(event.target.value)}
-              placeholder="kampanya-2026"
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/60 focus:bg-white/10"
-            />
+                <input
+                  type="text"
+                  required
+                  value={slug}
+                  onChange={(event) => setSlug(event.target.value)}
+                  placeholder="kampanya-2026"
+                  disabled={isEditing}
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/60 focus:bg-white/10 disabled:opacity-60"
+                />
           </div>
 
           <div>
@@ -170,8 +223,17 @@ export default function AdminDashboard() {
             type="submit"
             className="self-end rounded-2xl bg-cyan-400 px-6 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Kaydediliyor..." : "Kaydet / Güncelle"}
+            {loading ? "Kaydediliyor..." : isEditing ? "Güncelle" : "Kaydet / Güncelle"}
           </button>
+          {isEditing ? (
+            <button
+              type="button"
+              onClick={handleCancelEdit}
+              className="self-end ml-3 rounded-2xl border border-white/10 bg-white/5 px-6 py-3 font-semibold text-white transition hover:bg-white/10"
+            >
+              Vazgeç
+            </button>
+          ) : null}
         </form>
 
         {statusMessage ? (
