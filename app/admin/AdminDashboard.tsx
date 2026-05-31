@@ -25,8 +25,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [slugExists, setSlugExists] = useState(false);
-  const [downloadSize, setDownloadSize] = useState(1000);
-  const [hasMounted, setHasMounted] = useState(false);
+  const [downloadSizesBySlug, setDownloadSizesBySlug] = useState<Record<string, number>>({});
 
   const baseUrl = useMemo(
     () => (typeof window !== "undefined" ? window.location.origin : ""),
@@ -61,31 +60,6 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchLinks().catch((err) => setStatusMessage(err?.message ?? "Link listesi alınamadı."));
   }, []);
-
-  useEffect(() => {
-    try {
-      const savedSize = window.localStorage.getItem("dinamik-qr-download-size");
-      if (savedSize) {
-        const parsed = Number(savedSize);
-        if (DOWNLOAD_SIZES.some((option) => option.value === parsed)) {
-          setDownloadSize(parsed);
-        }
-      }
-    } catch {
-      // ignore storage issues
-    } finally {
-      setHasMounted(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!hasMounted) return;
-    try {
-      window.localStorage.setItem("dinamik-qr-download-size", String(downloadSize));
-    } catch {
-      // ignore storage issues
-    }
-  }, [downloadSize, hasMounted]);
 
   // auto-clear status messages after 4s
   useEffect(() => {
@@ -233,9 +207,9 @@ export default function AdminDashboard() {
     setEditingSlugOriginal(null);
   };
 
-  const downloadQR = async (slugName: string) => {
+  const downloadQR = async (slugName: string, size: number) => {
     try {
-      const response = await fetch(`/api/qr/${encodeURIComponent(slugName)}?size=${downloadSize}`, {
+      const response = await fetch(`/api/qr/${encodeURIComponent(slugName)}?size=${size}`, {
         credentials: 'include',
       });
 
@@ -247,7 +221,7 @@ export default function AdminDashboard() {
       const objectUrl = window.URL.createObjectURL(blob);
       const downloadLink = document.createElement('a');
       downloadLink.href = objectUrl;
-      downloadLink.download = `${slugName}-${downloadSize}px-qr.png`;
+      downloadLink.download = `${slugName}-${size}px-qr.png`;
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
@@ -255,6 +229,15 @@ export default function AdminDashboard() {
     } catch (error: any) {
       setStatusMessage(error?.message ?? 'QR indirilemedi.');
     }
+  };
+
+  const getRowDownloadSize = (slugName: string) => downloadSizesBySlug[slugName] ?? 1000;
+
+  const setRowDownloadSize = (slugName: string, value: number) => {
+    setDownloadSizesBySlug((current) => ({
+      ...current,
+      [slugName]: value,
+    }));
   };
 
   const handleLogout = async () => {
@@ -367,27 +350,13 @@ export default function AdminDashboard() {
               <h2 className="text-lg font-semibold">Kayıtlı Linkler</h2>
               <p className="mt-1 text-sm text-slate-400">QR, slug ve hedefi tek satırda gör.</p>
             </div>
-            <div className="flex items-center gap-3">
-              <label className="text-sm text-slate-300">İndirme boyutu</label>
-              <select
-                value={downloadSize}
-                onChange={(event) => setDownloadSize(Number(event.target.value))}
-                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white outline-none transition focus:border-cyan-300/60 focus:bg-white/10"
-              >
-                {DOWNLOAD_SIZES.map((option) => (
-                  <option key={option.value} value={option.value} className="bg-slate-950 text-white">
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-300">
-                {linkCount} kayıt
-              </span>
-            </div>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-300">
+              {linkCount} kayıt
+            </span>
           </div>
           <div className="border-b border-white/10 px-6 py-3 sm:px-7">
             <p className="text-xs leading-6 text-slate-400">
-              Seçtiğin boyut tarayıcıda hatırlanır. 512 px hızlı önizleme, 1000 px dengeli baskı, 2000 px yüksek çözünürlük içindir.
+              Her satırda tek bir boyut seçip direkt indirebilirsin. 512 px hızlı önizleme, 1000 px dengeli baskı, 2000 px yüksek çözünürlük içindir.
             </p>
           </div>
 
@@ -429,7 +398,18 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-5 text-slate-200">{link.clicks}</td>
                       <td className="px-6 py-5">
-                        <div className="flex flex-wrap gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <select
+                            value={getRowDownloadSize(link.slug)}
+                            onChange={(event) => setRowDownloadSize(link.slug, Number(event.target.value))}
+                            className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white outline-none transition focus:border-cyan-300/60 focus:bg-white/10"
+                          >
+                            {DOWNLOAD_SIZES.map((option) => (
+                              <option key={option.value} value={option.value} className="bg-slate-950 text-white">
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
                           <button
                             onClick={() => handleEditClick(link)}
                             className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-cyan-100 transition hover:bg-cyan-300/20"
@@ -437,10 +417,10 @@ export default function AdminDashboard() {
                             Düzenle
                           </button>
                           <button
-                            onClick={() => downloadQR(link.slug)}
+                            onClick={() => downloadQR(link.slug, getRowDownloadSize(link.slug))}
                             className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-emerald-100 transition hover:bg-emerald-300/20"
                           >
-                            İndir {downloadSize >= 1000 ? `${downloadSize / 1000}k` : downloadSize}
+                            İndir
                           </button>
                           <button
                             onClick={() => handleDelete(link.slug)}
