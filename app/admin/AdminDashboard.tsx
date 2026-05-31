@@ -17,6 +17,7 @@ export default function AdminDashboard() {
   const [editingSlugOriginal, setEditingSlugOriginal] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [slugExists, setSlugExists] = useState(false);
 
   const baseUrl = useMemo(
     () => (typeof window !== "undefined" ? window.location.origin : ""),
@@ -40,12 +41,35 @@ export default function AdminDashboard() {
     }
 
     const data = (await response.json()) as LinkData[];
-    setLinks(data);
+    // dedupe by slug (keep first/newest)
+    const map = new Map<string, LinkData>();
+    for (const l of data) {
+      if (!map.has(l.slug)) map.set(l.slug, l);
+    }
+    setLinks(Array.from(map.values()));
   };
 
   useEffect(() => {
     fetchLinks().catch((err) => setStatusMessage(err?.message ?? "Link listesi alınamadı."));
   }, []);
+
+  // auto-clear status messages after 4s
+  useEffect(() => {
+    if (!statusMessage) return;
+    const t = setTimeout(() => setStatusMessage(null), 4000);
+    return () => clearTimeout(t);
+  }, [statusMessage]);
+
+  // track slug uniqueness on client
+  useEffect(() => {
+    const s = slug.trim();
+    if (!s) {
+      setSlugExists(false);
+      return;
+    }
+    const exists = links.some((l) => l.slug === s);
+    setSlugExists(exists && !(isEditing && editingSlugOriginal === s));
+  }, [slug, links, isEditing, editingSlugOriginal]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +81,12 @@ export default function AdminDashboard() {
 
     if (!nextSlug || !nextTarget) {
       setStatusMessage("Lütfen slug ve hedef URL girin.");
+      setLoading(false);
+      return;
+    }
+
+    if (slugExists && !isEditing) {
+      setStatusMessage('Bu slug zaten kullanılıyor. Farklı bir slug girin veya düzenleyin.');
       setLoading(false);
       return;
     }
@@ -79,7 +109,9 @@ export default function AdminDashboard() {
           return copy;
         }
 
-        return [next, ...current];
+        // Insert at top and ensure we don't create duplicates
+        const filtered = current.filter((c) => c.slug !== nextSlug);
+        return [next, ...filtered];
       });
     }
 
@@ -167,8 +199,8 @@ export default function AdminDashboard() {
     setEditingSlugOriginal(null);
   };
 
-  const downloadQR = (slugName: string) => {
-    const canvas = document.getElementById(`qr-${slugName}`) as HTMLCanvasElement;
+  const downloadQR = (slugName: string, createdAt: string) => {
+    const canvas = document.getElementById(`qr-${slugName}-${createdAt}`) as HTMLCanvasElement;
     if (!canvas) {
       return;
     }
@@ -185,7 +217,10 @@ export default function AdminDashboard() {
   };
 
   const handleLogout = async () => {
-    window.location.href = "/admin/login";
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch {}
+    window.location.href = '/admin/login';
   };
 
   return (
@@ -282,10 +317,10 @@ export default function AdminDashboard() {
                   const qrUrl = `${baseUrl}/${link.slug}`;
 
                   return (
-                    <tr key={link.slug} className="border-t border-white/5 align-top hover:bg-white/[0.03]">
+                    <tr key={`${link.slug}-${link.created_at}`} className="border-t border-white/5 align-top hover:bg-white/[0.03]">
                       <td className="px-6 py-5">
                         <div className="inline-flex rounded-2xl border border-white/10 bg-white p-2">
-                          <QRCodeCanvas id={`qr-${link.slug}`} value={qrUrl} size={88} level="H" />
+                          <QRCodeCanvas id={`qr-${link.slug}-${link.created_at}`} value={qrUrl} size={88} level="H" />
                         </div>
                       </td>
                       <td className="px-6 py-5 font-medium text-white">{link.slug}</td>
@@ -297,10 +332,7 @@ export default function AdminDashboard() {
                       <td className="px-6 py-5">
                         <div className="flex flex-wrap gap-3">
                           <button
-                            onClick={() => {
-                              setSlug(link.slug);
-                              setTargetUrl(link.target_url);
-                            }}
+                            onClick={() => handleEditClick(link)}
                             className="text-cyan-300 transition hover:text-cyan-200"
                           >
                             Düzenle

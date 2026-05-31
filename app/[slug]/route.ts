@@ -3,7 +3,8 @@ import { ensureLinksTable, getLinkBySlug, incrementClicks } from '@/lib/links';
 
 export const runtime = 'nodejs';
 
-export async function GET(request: Request, { params }: { params: { slug: string } }) {
+export async function GET(request: Request, context: { params: Promise<{ slug: string }> }) {
+  const params = await context.params;
   const slug = params.slug;
   const requestUrl = new URL(request.url);
   const encodedTarget = requestUrl.searchParams.get('u');

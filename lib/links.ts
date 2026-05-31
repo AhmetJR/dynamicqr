@@ -35,9 +35,26 @@ async function upstashGetLinks(): Promise<LinkRecord[]> {
   const client = getUpstash();
   if (!client) return [];
   const raw = await client.get('dinamik-qr-links');
-  if (!raw) return [];
+  if (raw == null) return [];
+
+  // Upstash may return the stored value as a string, an array, or an object.
+  // Handle common shapes robustly.
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw) as LinkRecord[];
+    } catch {
+      return [];
+    }
+  }
+
+  if (Array.isArray(raw)) {
+    return raw as LinkRecord[];
+  }
+
+  // Some clients may return an object wrapper; attempt to extract a value.
   try {
-    return JSON.parse(raw as string) as LinkRecord[];
+    // stringify + parse normalizes objects to arrays when possible
+    return JSON.parse(JSON.stringify(raw)) as LinkRecord[];
   } catch {
     return [];
   }
@@ -46,7 +63,20 @@ async function upstashGetLinks(): Promise<LinkRecord[]> {
 async function upstashSetLinks(links: LinkRecord[]) {
   const client = getUpstash();
   if (!client) return;
-  await client.set('dinamik-qr-links', JSON.stringify(links));
+  // Ensure no duplicate slugs are stored
+  const deduped = dedupeLinks(links);
+  await client.set('dinamik-qr-links', JSON.stringify(deduped));
+}
+
+function dedupeLinks(links: LinkRecord[]) {
+  const map = new Map<string, LinkRecord>();
+  // keep the first occurrence (assumed to be newest if list is unshifted)
+  for (const l of links) {
+    if (!map.has(l.slug)) {
+      map.set(l.slug, l);
+    }
+  }
+  return Array.from(map.values());
 }
 
 async function withStorageLock<T>(task: () => Promise<T>) {
@@ -72,10 +102,16 @@ async function readFileLinks(): Promise<LinkRecord[]> {
 
 async function writeFileLinks(links: LinkRecord[]) {
   await mkdir(path.dirname(DATA_FILE), { recursive: true });
-  await writeFile(DATA_FILE, JSON.stringify(links, null, 2), "utf8");
+  const deduped = dedupeLinks(links);
+  await writeFile(DATA_FILE, JSON.stringify(deduped, null, 2), "utf8");
 }
 
 export async function ensureLinksTable() {
+  // In production, require Upstash to be configured for persistence.
+  if (process.env.NODE_ENV === 'production' && !hasUpstash()) {
+    throw new Error('Upstash not configured in production environment');
+  }
+
   if (hasUpstash()) {
     // ensure key exists
     const links = await upstashGetLinks();
