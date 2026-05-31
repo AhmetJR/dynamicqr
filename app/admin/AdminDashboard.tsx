@@ -22,10 +22,14 @@ export default function AdminDashboard() {
   );
 
   const fetchLinks = async () => {
-    const response = await fetch("/api/links");
+    const response = await fetch("/api/links", {
+      credentials: "include",
+      cache: "no-store",
+    });
 
     if (!response.ok) {
-      throw new Error("Linkler alınamadı");
+      const errorText = await response.text();
+      throw new Error(errorText || `Linkler alınamadı (${response.status})`);
     }
 
     const data = (await response.json()) as LinkData[];
@@ -44,12 +48,14 @@ export default function AdminDashboard() {
     try {
       const response = await fetch("/api/links", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slug: slug.trim(), target_url: targetUrl.trim() }),
       });
 
       if (!response.ok) {
-        throw new Error("Kaydetme başarısız");
+        const errorText = await response.text();
+        throw new Error(errorText || `Kaydetme başarısız (${response.status})`);
       }
 
       setSlug("");
@@ -73,12 +79,14 @@ export default function AdminDashboard() {
     try {
       const response = await fetch("/api/links", {
         method: "DELETE",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slug: deleteSlug }),
       });
 
       if (!response.ok) {
-        throw new Error("Silme başarısız");
+        const errorText = await response.text();
+        throw new Error(errorText || `Silme başarısız (${response.status})`);
       }
 
       await fetchLinks();

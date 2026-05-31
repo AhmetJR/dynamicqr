@@ -1,19 +1,10 @@
 import { NextResponse } from 'next/server';
 import { deleteLink, ensureLinksTable, getLinks, upsertLink } from '@/lib/links';
-import { ADMIN_COOKIE_NAME } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
-function isAdminAuthorized(request: Request) {
-  return request.headers.get('cookie')?.includes(`${ADMIN_COOKIE_NAME}=true`) ?? false;
-}
-
 export async function GET(request: Request) {
   try {
-    if (!isAdminAuthorized(request)) {
-      return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 });
-    }
-
     await ensureLinksTable();
     return NextResponse.json(await getLinks());
   } catch (error) {
@@ -24,10 +15,6 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    if (!isAdminAuthorized(request)) {
-      return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 });
-    }
-
     const { slug, target_url } = await request.json();
     await ensureLinksTable();
     await upsertLink(slug, target_url);
@@ -40,10 +27,6 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    if (!isAdminAuthorized(request)) {
-      return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 });
-    }
-
     const { slug } = await request.json();
     await ensureLinksTable();
     await deleteLink(slug);
