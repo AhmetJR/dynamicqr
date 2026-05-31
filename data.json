@@ -1,12 +1,1 @@
-{
-  "links": [
-    {
-      "slug": "test",
-      "target_url": "https://google.com"
-    },
-    {
-      "slug": "proje1",
-      "target_url": "https://github.com"
-    }
-  ]
-}
+[]

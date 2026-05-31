@@ -1,42 +1,56 @@
-import { sql } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
+import fs from 'fs/promises';
+import path from 'path';
+
+const dataFilePath = path.join(process.cwd(), 'data.json');
+
+// Yardımcı Fonksiyon: JSON'u oku
+async function getLinks() {
+  try {
+    const data = await fs.readFile(dataFilePath, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    return [];
+  }
+}
 
 // Tüm linkleri getir
 export async function GET() {
-  try {
-    const { rows } = await sql`SELECT * FROM links ORDER BY created_at DESC`;
-    return NextResponse.json(rows);
-  } catch (error) {
-    return NextResponse.json({ error: 'Veriler çekilemedi' }, { status: 500 });
-  }
+  const links = await getLinks();
+  return NextResponse.json(links);
 }
 
-// Yeni link ekle veya olanı güncelle (Upsert)
+// Yeni link ekle veya olanı güncelle
 export async function POST(request: Request) {
   try {
     const { slug, target_url } = await request.json();
+    let links = await getLinks();
     
-    // Var olanı güncelle veya yeni ekle
-    await sql`
-      INSERT INTO links (slug, target_url) 
-      VALUES (${slug}, ${target_url})
-      ON CONFLICT (slug) 
-      DO UPDATE SET target_url = EXCLUDED.target_url;
-    `;
+    const existingIndex = links.findIndex((link: any) => link.slug === slug);
     
+    if (existingIndex > -1) {
+      links[existingIndex].target_url = target_url; // Güncelle
+    } else {
+      links.push({ slug, target_url, clicks: 0, created_at: new Date().toISOString() }); // Yeni ekle
+    }
+
+    await fs.writeFile(dataFilePath, JSON.stringify(links, null, 2));
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error: 'İşlem başarısız' }, { status: 500 });
+    return NextResponse.json({ error: 'Kayıt başarısız' }, { status: 500 });
   }
 }
 
-// Link sil
+// Link Sil
 export async function DELETE(request: Request) {
   try {
     const { slug } = await request.json();
-    await sql`DELETE FROM links WHERE slug = ${slug}`;
+    let links = await getLinks();
+    links = links.filter((link: any) => link.slug !== slug);
+    
+    await fs.writeFile(dataFilePath, JSON.stringify(links, null, 2));
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error: 'Silme işlemi başarısız' }, { status: 500 });
+    return NextResponse.json({ error: 'Silme başarısız' }, { status: 500 });
   }
 }
