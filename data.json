@@ -1,1 +1,20 @@
-[]
+[
+  {
+    "slug": "tes",
+    "target_url": "https://kick.com/rahmican",
+    "clicks": 0,
+    "created_at": "2026-05-31T11:16:25.848Z"
+  },
+  {
+    "slug": "x123",
+    "target_url": "https://example.com",
+    "clicks": 0,
+    "created_at": "2026-05-31T11:07:37.768Z"
+  },
+  {
+    "slug": "testt",
+    "target_url": "https://kick.com/rahmican",
+    "clicks": 0,
+    "created_at": "2026-05-31T11:06:58.415Z"
+  }
+]
