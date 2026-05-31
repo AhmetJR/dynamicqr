@@ -373,7 +373,7 @@ export default function AdminDashboard() {
               </thead>
               <tbody>
                 {links.map((link) => {
-                  const qrUrl = `${baseUrl}/${link.slug}`;
+                  const qrUrl = `${baseUrl}/${encodeURIComponent(link.slug)}`;
                   // Use dynamic QR: encode the short slug URL so the redirect target can be changed later
                   const qrValue = qrUrl;
 

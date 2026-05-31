@@ -15,7 +15,11 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     const { slug } = await context.params;
     const requestUrl = new URL(request.url);
     const size = resolveSize(requestUrl.searchParams.get('size'));
-    const url = `${request.headers.get('x-forwarded-proto') || requestUrl.protocol.replace(':', '') || 'https'}://${request.headers.get('host') || requestUrl.host}/${slug}`;
+    const protocol = request.headers.get('x-forwarded-proto') || requestUrl.protocol.replace(':', '') || 'https';
+    const host = request.headers.get('host') || requestUrl.host;
+    const safeSlug = encodeURIComponent(slug);
+    const url = `${protocol}://${host}/${safeSlug}`;
+    const fileName = `${slug.replace(/[^a-zA-Z0-9._-]+/g, '-') || 'qr'}-${size}px-qr.png`;
 
     // generate PNG buffer
     const pngBuffer = await QRCode.toBuffer(url, { type: 'png', width: size, margin: 2 });
@@ -24,7 +28,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       status: 200,
       headers: {
         'Content-Type': 'image/png',
-        'Content-Disposition': `attachment; filename="${slug}-${size}px-qr.png"`,
+        'Content-Disposition': `attachment; filename="${fileName}"`,
       },
     });
   } catch (err) {
