@@ -315,18 +315,20 @@ export default function AdminDashboard() {
               <tbody>
                 {links.map((link) => {
                   const qrUrl = `${baseUrl}/${link.slug}`;
+                  // QR should encode the actual target URL so scanners open the real target (e.g. YouTube)
+                  const qrValue = link.target_url || qrUrl;
 
                   return (
                     <tr key={`${link.slug}-${link.created_at}`} className="border-t border-white/5 align-top hover:bg-white/[0.03]">
                       <td className="px-6 py-5">
                         <div className="inline-flex rounded-2xl border border-white/10 bg-white p-2">
-                          <QRCodeCanvas id={`qr-${link.slug}-${link.created_at}`} value={qrUrl} size={88} level="H" />
+                          <QRCodeCanvas id={`qr-${link.slug}-${link.created_at}`} value={qrValue} size={88} level="H" />
                         </div>
                       </td>
                       <td className="px-6 py-5 font-medium text-white">{link.slug}</td>
                       <td className="px-6 py-5 text-slate-300">
                         <p className="max-w-md break-all">{link.target_url}</p>
-                        <p className="mt-1 text-xs text-slate-500">{qrUrl}</p>
+                        <p className="mt-1 text-xs text-slate-500">{qrValue}</p>
                       </td>
                       <td className="px-6 py-5 text-slate-200">{link.clicks}</td>
                       <td className="px-6 py-5">
@@ -338,7 +340,7 @@ export default function AdminDashboard() {
                             Düzenle
                           </button>
                           <button
-                            onClick={() => downloadQR(link.slug)}
+                            onClick={() => downloadQR(link.slug, link.created_at)}
                             className="text-emerald-300 transition hover:text-emerald-200"
                           >
                             İndir
